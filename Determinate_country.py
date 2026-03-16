@@ -3,26 +3,43 @@ from datetime import timedelta, datetime
 from dotenv import load_dotenv
 from country_ia import IAGroqPais
 from country_clean import obtener_iso3
-from Country_post import sincronizar_posts_por_hora
+from Sincronizar_post import sincronizar_posts_por_hora
 import time
 
 load_dotenv()
 
-def obtener_fechas_pendientes(cursor):
+def obtener_fecha_maxima(cursor):
 
     cursor.execute(
         """
-        SELECT DISTINCT DATE(extract_date)
+        SELECT MAX(DATE(extract_date))
         FROM public.salert_basic
         WHERE red BETWEEN 1 AND 3
           AND location IS NOT NULL
           AND location != ''
           AND country IS NULL
-        ORDER BY 1 DESC
         """
     )
 
-    return [row[0] for row in cursor.fetchall()]
+    resultado = cursor.fetchone()
+
+    return resultado[0] if resultado else None
+
+def generar_fechas_desde_max(fecha_inicio, dias):
+
+    return [
+        fecha_inicio - timedelta(days=i)
+        for i in range(dias)
+    ]
+
+def obtener_fechas_pendientes(cursor, dias):
+
+    fecha_inicio = obtener_fecha_maxima(cursor)
+
+    if not fecha_inicio:
+        return []
+
+    return generar_fechas_desde_max(fecha_inicio, dias)
 
 def obtener_horas_con_registros(cursor, fecha):
 
@@ -46,7 +63,9 @@ def procesar_locations():
     conexion = conectar_db()
     cursor = conexion.cursor()
 
-    fechas = obtener_fechas_pendientes(cursor)
+    dias_procesar = 5
+
+    fechas = obtener_fechas_pendientes(cursor, dias_procesar)
 
     if not fechas:
         print("No hay registros pendientes")
