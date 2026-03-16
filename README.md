@@ -19,11 +19,11 @@ The system processes records **starting from the most recent dates** and works i
 
 ```text
 project/
-├── conexion_bd.py          # PostgreSQL connection
-├── country_ia.py           # AI inference for country detection
-├── country_clean.py        # Location cleaning and validation
-├── Determinate_country.py  # Main pipeline script
-├── Country_post.py         # Post country synchronization
+├── bd_connection.py        # PostgreSQL connection
+├── ia_connection.py        # AI inference for country detection
+├── determinate_country.py  # Location cleaning and validation
+├── assign_country.py       # Main pipeline script
+├── synchronize_post.py     # Post country synchronization
 ├── Dockerfile              # Container configuration
 ├── docker-compose.yml      # Orchestration
 ├── requirements.txt        # Dependencies
@@ -49,7 +49,7 @@ The pipeline uses an incremental approach to ensure reliability:
 
 ## Scripts
 
-### 1. `Determinate_country.py`
+### 1. `assing_country.py`
 
 The main pipeline script. It retrieves pending records, cleans the `location` field, and determines the country using a multi-step strategy:
 
@@ -60,7 +60,7 @@ The main pipeline script. It retrieves pending records, cleans the `location` fi
 
 *If the country cannot be determined, it stores the value: `UNK`.*
 
-### 2. `Country_post.py`
+### 2. `synchronize_post.py`
 
 Synchronizes the detected country into the related posts table (`public.salert_post_temp.pais`) using the relationship: `salert_post_temp.page_id = salert_basic.id`.
 
@@ -108,7 +108,7 @@ pip install -r requirements.txt
 ### Running Locally
 
 ```bash
-python Determinate_country.py
+python assign_country.py
 
 ```
 
