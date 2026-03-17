@@ -23,7 +23,7 @@ project/
 ├── ia_connection.py        # AI inference for country detection
 ├── determinate_country.py  # Location cleaning and validation
 ├── assign_country.py       # Main pipeline script
-├── synchronize_post.py     # Post country synchronization
+├── salert_repository.py    # DB data access
 ├── Dockerfile              # Container configuration
 ├── docker-compose.yml      # Orchestration
 ├── requirements.txt        # Dependencies
@@ -51,20 +51,15 @@ The pipeline uses an incremental approach to ensure reliability:
 
 ### 1. `assing_country.py`
 
-The main pipeline script. It retrieves pending records, cleans the `location` field, and determines the country using a multi-step strategy:
+The main pipeline script. It retrieves pending records, cleans the `location` field, determines the country using a multi-step strategy and synchronizes the detected country into the related posts table :
 
 1. Location cleaning.
 2. Location validation.
 3. Direct detection via `pycountry`.
 4. AI inference using **Groq LLM**.
+5. Post synchronization
 
 *If the country cannot be determined, it stores the value: `UNK`.*
-
-### 2. `synchronize_post.py`
-
-Synchronizes the detected country into the related posts table (`public.salert_post_temp.pais`) using the relationship: `salert_post_temp.page_id = salert_basic.id`.
-
----
 
 ## Configuration
 
