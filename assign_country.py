@@ -1,51 +1,12 @@
 from bd_connection import conectar_db
-from datetime import timedelta, datetime
+from datetime import timedelta
 from dotenv import load_dotenv
 from ia_connection import IAGroqPais
 from determinate_country import obtener_iso3
-from synchronize_post import sincronizar_posts_por_hora
+from salert_repository import sincronizar_posts_por_hora, obtener_fechas_pendientes, obtener_horas_con_registros
 import time
 
 load_dotenv()
-
-def obtener_fechas_pendientes(cursor, dias):
-
-    cursor.execute(
-        """
-        SELECT MAX(DATE(extract_date))
-        FROM public.salert_basic
-        WHERE red BETWEEN 1 AND 3
-          AND location IS NOT NULL
-          AND location != ''
-          AND country IS NULL
-        """
-    )
-
-    resultado = cursor.fetchone()
-    fecha_inicio = resultado[0] if resultado else None
-
-    if not fecha_inicio:
-        return []
-
-    return [fecha_inicio - timedelta(days=i) for i in range(dias)]
-
-def obtener_horas_con_registros(cursor, fecha):
-
-    cursor.execute(
-        """
-        SELECT DISTINCT DATE_TRUNC('hour', extract_date)
-        FROM public.salert_basic
-        WHERE DATE(extract_date) = %s
-        AND red BETWEEN 1 AND 3
-        AND location IS NOT NULL
-        AND location != ''
-        AND country IS NULL
-        ORDER BY 1 DESC
-        """,
-        (fecha,),
-    )
-
-    return [row[0] for row in cursor.fetchall()]
 
 def procesar_locations():
     ia_client = IAGroqPais()
@@ -110,7 +71,8 @@ def procesar_locations():
                 conexion.commit()
                 print(f"Commit realizado para la hora {inicio}")
 
-                sincronizar_posts_por_hora(cursor, inicio, fin)
+                actualizados = sincronizar_posts_por_hora(cursor, inicio, fin)
+                print("Posts sincronizados:", actualizados)
                 
                 conexion.commit()
 
