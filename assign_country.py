@@ -9,21 +9,9 @@ import time
 load_dotenv()
 
 def obtener_fechas_pendientes(dias):
-    hoy = datetime.now().date()
+    hoy = datetime(2025, 6, 26).date()
+    #hoy = datetime.now().date()
     return [hoy - timedelta(days=i) for i in range(dias)]
-
-def obtener_horas_hasta_ahora(fecha):
-    ahora = datetime.now()
-    
-    if fecha == ahora.date():
-        max_hora = ahora.hour
-    else:
-        max_hora = 23
-
-    return [
-        datetime.combine(fecha, datetime.min.time()) + timedelta(hours=i)
-        for i in range(max_hora + 1)
-    ]
 
 def procesar_locations():
     ia_client = IAGroqPais()
@@ -43,55 +31,43 @@ def procesar_locations():
         for fecha in fechas:
             print("\nProcesando fecha:", fecha)
 
-            horas = obtener_horas_hasta_ahora(fecha)
-            print("Horas con registros:", len(horas))
+            cursor.execute(
+                """
+                SELECT id, location
+                FROM public.salert_basic
+                WHERE red BETWEEN 1 AND 3
+                  AND location IS NOT NULL
+                  AND location != ''
+                  AND country IS NULL
+                  AND extract_date >= %s
+                  AND extract_date < %s
+                ORDER BY extract_date DESC
+                """,
+                (fecha, fecha + timedelta(days=1)),
+            )
 
-            for inicio in horas:
-                
-                fin = inicio + timedelta(hours=1)
+            registros = cursor.fetchall()
+            print("Registros encontrados:", len(registros))
 
-                print("\nProcesando hora:", inicio)
+            for id_registro, location in registros:
+                iso3 = obtener_iso3(location, ia_client)
+                valor_country = iso3 or "UNK"
 
                 cursor.execute(
                     """
-                    SELECT id, location
-                    FROM public.salert_basic
-                    WHERE red BETWEEN 1 AND 3
-                      AND location IS NOT NULL
-                      AND location != ''
-                      AND country IS NULL
-                      AND extract_date >= %s
-                      AND extract_date < %s
-                    ORDER BY extract_date DESC
+                    UPDATE public.salert_basic
+                    SET country = %s
+                    WHERE id = %s
                     """,
-                    (inicio, fin),
+                    (valor_country, id_registro),
                 )
 
-                registros = cursor.fetchall()
-                print("Registros encontrados:", len(registros))
+                time.sleep(0.2)
 
-                for id_registro, location in registros:
-                    iso3 = obtener_iso3(location, ia_client)
-                    valor_country = iso3 or "UNK"
-
-                    cursor.execute(
-                        """
-                        UPDATE public.salert_basic
-                        SET country = %s
-                        WHERE id = %s
-                        """,
-                        (valor_country, id_registro),
-                    )
-
-                    time.sleep(0.2)
-
-                conexion.commit()
-                print(f"Commit realizado para la hora {inicio}")
-
-                actualizados = sincronizar_posts_por_hora(cursor, inicio, fin)
-                print("Posts sincronizados:", actualizados)
+            actualizados = sincronizar_posts_por_hora(cursor, fecha, fecha + timedelta(days=1))
+            print("Posts sincronizados:", actualizados)
                 
-                conexion.commit()
+            conexion.commit()
 
         print("\nProceso terminado")
 
