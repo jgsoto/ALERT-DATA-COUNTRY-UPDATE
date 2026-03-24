@@ -1,12 +1,29 @@
 from bd_connection import conectar_db
-from datetime import timedelta
+from datetime import timedelta, datetime
 from dotenv import load_dotenv
 from ia_connection import IAGroqPais
 from determinate_country import obtener_iso3
-from salert_repository import sincronizar_posts_por_hora, obtener_fechas_pendientes, obtener_horas_con_registros
+from salert_repository import sincronizar_posts_por_hora
 import time
 
 load_dotenv()
+
+def obtener_fechas_pendientes(dias):
+    hoy = datetime.now().date()
+    return [hoy - timedelta(days=i) for i in range(dias)]
+
+def obtener_horas_hasta_ahora(fecha):
+    ahora = datetime.now()
+    
+    if fecha == ahora.date():
+        max_hora = ahora.hour
+    else:
+        max_hora = 23
+
+    return [
+        datetime.combine(fecha, datetime.min.time()) + timedelta(hours=i)
+        for i in range(max_hora + 1)
+    ]
 
 def procesar_locations():
     ia_client = IAGroqPais()
@@ -14,7 +31,7 @@ def procesar_locations():
     cursor = conexion.cursor()
 
     dias_procesar = 5
-    fechas = obtener_fechas_pendientes(cursor, dias_procesar)
+    fechas = obtener_fechas_pendientes(dias_procesar)
 
     if not fechas:
         print("No hay registros pendientes")
@@ -26,7 +43,7 @@ def procesar_locations():
         for fecha in fechas:
             print("\nProcesando fecha:", fecha)
 
-            horas = obtener_horas_con_registros(cursor, fecha)
+            horas = obtener_horas_hasta_ahora(fecha)
             print("Horas con registros:", len(horas))
 
             for inicio in horas:
