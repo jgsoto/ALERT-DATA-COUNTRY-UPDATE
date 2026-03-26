@@ -47,3 +47,26 @@ class IAGroqPais:
             print("Error IA:", e)
 
         return None
+    
+    def es_texto_geografico(self, texto):
+        prompt = f"""
+        Determina si el siguiente texto contiene información geográfica útil
+        para identificar un país.
+
+        Responde SOLO con:
+        SI
+        NO
+
+        Texto:
+        "{texto}"
+        """
+
+        respuesta = self.client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0,
+        )
+
+        resultado = respuesta.choices[0].message.content.strip().upper()
+
+        return resultado == "SI"

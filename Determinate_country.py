@@ -13,7 +13,7 @@ def quitar_acentos(texto):
 
 def limpiar_location(location):
     loc = location.lower()
-    loc = location.strip()
+    loc = loc.strip()
     loc = re.sub(r"[^\w\s,.-]", "", loc)
     loc = quitar_acentos(loc)
     loc = re.sub(r"\s+", " ", loc)

@@ -3,12 +3,12 @@ from datetime import timedelta, datetime
 from dotenv import load_dotenv
 from ia_connection import IAGroqPais
 from determinate_country import obtener_iso3
-from salert_repository import sincronizar_posts_por_hora
+from salert_repository import sincronizar_posts_por_dia
 import time
 
 load_dotenv()
 
-def obtener_fechas_pendientes(dias):
+def obtener_fechas(dias):
     hoy = datetime(2025, 6, 26).date()
     #hoy = datetime.now().date()
     return [hoy - timedelta(days=i) for i in range(dias)]
@@ -18,13 +18,11 @@ def procesar_locations():
     conexion = conectar_db()
     cursor = conexion.cursor()
 
-    dias_procesar = 5
-    fechas = obtener_fechas_pendientes(dias_procesar)
+    dias_procesar = 1
+    fechas = obtener_fechas(dias_procesar)
 
     if not fechas:
         print("No hay registros pendientes")
-        cursor.close()
-        conexion.close()
         return
 
     try:
@@ -33,14 +31,20 @@ def procesar_locations():
 
             cursor.execute(
                 """
-                SELECT id, location
+                SELECT id, location, description
                 FROM public.salert_basic
                 WHERE red BETWEEN 1 AND 3
-                  AND location IS NOT NULL
-                  AND location != ''
                   AND country IS NULL
                   AND extract_date >= %s
                   AND extract_date < %s
+                  AND (
+                        (location IS NOT NULL AND location != '')
+                        OR
+                        (
+                          (location IS NULL OR location = '')
+                          AND (description IS NOT NULL AND description != '')
+                        )
+                      )
                 ORDER BY extract_date DESC
                 """,
                 (fecha, fecha + timedelta(days=1)),
@@ -49,8 +53,20 @@ def procesar_locations():
             registros = cursor.fetchall()
             print("Registros encontrados:", len(registros))
 
-            for id_registro, location in registros:
-                iso3 = obtener_iso3(location, ia_client)
+            for id_registro, location, description in registros:
+
+                iso3 = None
+
+                if location and location.strip():
+                    iso3 = obtener_iso3(location, ia_client)
+
+                if not iso3 and description and description.strip():
+
+                    es_geo = ia_client.es_texto_geografico(description)
+
+                    if es_geo:
+                        iso3 = ia_client.obtener_iso3_ia(description)
+
                 valor_country = iso3 or "UNK"
 
                 cursor.execute(
@@ -64,9 +80,11 @@ def procesar_locations():
 
                 time.sleep(0.2)
 
-            actualizados = sincronizar_posts_por_hora(cursor, fecha, fecha + timedelta(days=1))
+            actualizados = sincronizar_posts_por_dia(
+                cursor, fecha, fecha + timedelta(days=1)
+            )
             print("Posts sincronizados:", actualizados)
-                
+
             conexion.commit()
 
         print("\nProceso terminado")
@@ -74,7 +92,6 @@ def procesar_locations():
     except Exception as e:
         print("Error:", e)
         conexion.rollback()
-        print("Rollback ejecutado")
 
     finally:
         cursor.close()
