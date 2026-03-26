@@ -19,11 +19,11 @@ The system processes records **starting from the most recent dates** and works i
 
 ```text
 project/
-├── conexion_bd.py          # PostgreSQL connection
-├── country_ia.py           # AI inference for country detection
-├── country_clean.py        # Location cleaning and validation
-├── Determinate_country.py  # Main pipeline script
-├── Country_post.py         # Post country synchronization
+├── bd_connection.py        # PostgreSQL connection
+├── ia_connection.py        # AI inference for country detection
+├── determinate_country.py  # Location cleaning and validation
+├── main.py                 # Main pipeline script
+├── salert_repository.py    # DB data access
 ├── Dockerfile              # Container configuration
 ├── docker-compose.yml      # Orchestration
 ├── requirements.txt        # Dependencies
@@ -49,22 +49,17 @@ The pipeline uses an incremental approach to ensure reliability:
 
 ## Scripts
 
-### 1. `Determinate_country.py`
+### 1. `main.py`
 
-The main pipeline script. It retrieves pending records, cleans the `location` field, and determines the country using a multi-step strategy:
+The main pipeline script. It retrieves pending records, cleans the `location` field, determines the country using a multi-step strategy and synchronizes the detected country into the related posts table :
 
 1. Location cleaning.
 2. Location validation.
 3. Direct detection via `pycountry`.
 4. AI inference using **Groq LLM**.
+5. Post synchronization
 
 *If the country cannot be determined, it stores the value: `UNK`.*
-
-### 2. `Country_post.py`
-
-Synchronizes the detected country into the related posts table (`public.salert_post_temp.pais`) using the relationship: `salert_post_temp.page_id = salert_basic.id`.
-
----
 
 ## Configuration
 
@@ -108,7 +103,7 @@ pip install -r requirements.txt
 ### Running Locally
 
 ```bash
-python Determinate_country.py
+python assign_country.py
 
 ```
 
@@ -144,16 +139,10 @@ docker compose up --build
 
 ```text
 Procesando fecha: 2025-07-17
-Horas con registros: 2
+Registros encotrados: 71
+Post Sincronizados: 1989
 
-Procesando hora: 2025-07-17 15:00:00
-Registros encontrados: 3
-
-Procesando: Madrid  -> ISO3: ESP
-Procesando: Guayaquil -> ISO3: ECU
-
-Commit realizado para la hora 2025-07-17 15:00:00
-Sincronización completada
+Proceso Terminado
 
 ```
 

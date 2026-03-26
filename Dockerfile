@@ -8,4 +8,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD ["python", "Determinate_country.py"]
+CMD ["python", "main.py"]
