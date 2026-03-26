@@ -22,7 +22,7 @@ project/
 ├── bd_connection.py        # PostgreSQL connection
 ├── ia_connection.py        # AI inference for country detection
 ├── determinate_country.py  # Location cleaning and validation
-├── assign_country.py       # Main pipeline script
+├── main.py                 # Main pipeline script
 ├── salert_repository.py    # DB data access
 ├── Dockerfile              # Container configuration
 ├── docker-compose.yml      # Orchestration
@@ -49,7 +49,7 @@ The pipeline uses an incremental approach to ensure reliability:
 
 ## Scripts
 
-### 1. `assing_country.py`
+### 1. `main.py`
 
 The main pipeline script. It retrieves pending records, cleans the `location` field, determines the country using a multi-step strategy and synchronizes the detected country into the related posts table :
 
@@ -139,16 +139,10 @@ docker compose up --build
 
 ```text
 Procesando fecha: 2025-07-17
-Horas con registros: 2
+Registros encotrados: 71
+Post Sincronizados: 1989
 
-Procesando hora: 2025-07-17 15:00:00
-Registros encontrados: 3
-
-Procesando: Madrid  -> ISO3: ESP
-Procesando: Guayaquil -> ISO3: ECU
-
-Commit realizado para la hora 2025-07-17 15:00:00
-Sincronización completada
+Proceso Terminado
 
 ```
 
