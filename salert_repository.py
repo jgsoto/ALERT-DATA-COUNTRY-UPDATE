@@ -22,18 +22,11 @@ def obtener_registros(cursor, fecha_inicio, fecha_fin):
         SELECT id, location, description
         FROM public.salert_basic
         WHERE red BETWEEN 1 AND 3
-          AND country IS NULL
-          AND extract_date >= %s
-          AND extract_date < %s
-          AND (
-                (location IS NOT NULL AND location != '')
-                OR
-                (
-                  (location IS NULL OR location = '')
-                  AND (description IS NOT NULL AND description != '')
-                )
-              )
-        ORDER BY extract_date DESC
+        AND country IS NULL
+        AND extract_date >= %s
+        AND extract_date < %s
+        AND (COALESCE(location, '') != '' OR COALESCE(description, '') != '')
+        ORDER BY extract_date DESC;
         """,
         (fecha_inicio, fecha_fin),
     )

@@ -3,7 +3,7 @@ from datetime import timedelta, datetime
 from dotenv import load_dotenv
 from ia_connection import IAGroqPais
 from determinate_country import obtener_iso3
-from salert_repository import sincronizar_posts_por_dia
+from salert_repository import sincronizar_posts_por_dia, obtener_registros, actualizar_country
 import time
 
 load_dotenv()
@@ -13,13 +13,47 @@ def obtener_fechas(dias):
     #hoy = datetime.now().date()
     return [hoy - timedelta(days=i) for i in range(dias)]
 
-def procesar_locations():
-    ia_client = IAGroqPais()
+def procesar_por_fecha(cursor, fecha, ia_client):
+    print("\nProcesando fecha:", fecha)
+
+    registros = obtener_registros(cursor, fecha, fecha + timedelta(days=1))
+    print("Registros encontrados:", len(registros))
+
+    for id_registro, location, description in registros:
+
+        iso3 = None
+
+        # 1. location
+        if location and location.strip():
+            iso3 = obtener_iso3(location, ia_client)
+
+        # 2. description
+        if not iso3 and description and description.strip():
+
+            es_geo = ia_client.es_texto_geografico(description)
+
+            if es_geo:
+                iso3 = ia_client.obtener_iso3_ia(description)
+
+        valor_country = iso3 or "UNK"
+
+        actualizar_country(cursor, id_registro, valor_country)
+
+        time.sleep(0.2)
+
+    actualizados = sincronizar_posts_por_dia(
+        cursor, fecha, fecha + timedelta(days=1)
+    )
+
+    print("Posts sincronizados:", actualizados)
+
+def main():
     conexion = conectar_db()
     cursor = conexion.cursor()
 
-    dias_procesar = 1
-    fechas = obtener_fechas(dias_procesar)
+    ia_client = IAGroqPais()
+
+    fechas = obtener_fechas(1)
 
     if not fechas:
         print("No hay registros pendientes")
@@ -27,64 +61,7 @@ def procesar_locations():
 
     try:
         for fecha in fechas:
-            print("\nProcesando fecha:", fecha)
-
-            cursor.execute(
-                """
-                SELECT id, location, description
-                FROM public.salert_basic
-                WHERE red BETWEEN 1 AND 3
-                  AND country IS NULL
-                  AND extract_date >= %s
-                  AND extract_date < %s
-                  AND (
-                        (location IS NOT NULL AND location != '')
-                        OR
-                        (
-                          (location IS NULL OR location = '')
-                          AND (description IS NOT NULL AND description != '')
-                        )
-                      )
-                ORDER BY extract_date DESC
-                """,
-                (fecha, fecha + timedelta(days=1)),
-            )
-
-            registros = cursor.fetchall()
-            print("Registros encontrados:", len(registros))
-
-            for id_registro, location, description in registros:
-
-                iso3 = None
-
-                if location and location.strip():
-                    iso3 = obtener_iso3(location, ia_client)
-
-                if not iso3 and description and description.strip():
-
-                    es_geo = ia_client.es_texto_geografico(description)
-
-                    if es_geo:
-                        iso3 = ia_client.obtener_iso3_ia(description)
-
-                valor_country = iso3 or "UNK"
-
-                cursor.execute(
-                    """
-                    UPDATE public.salert_basic
-                    SET country = %s
-                    WHERE id = %s
-                    """,
-                    (valor_country, id_registro),
-                )
-
-                time.sleep(0.2)
-
-            actualizados = sincronizar_posts_por_dia(
-                cursor, fecha, fecha + timedelta(days=1)
-            )
-            print("Posts sincronizados:", actualizados)
-
+            procesar_por_fecha(cursor, fecha, ia_client)
             conexion.commit()
 
         print("\nProceso terminado")
@@ -97,5 +74,6 @@ def procesar_locations():
         cursor.close()
         conexion.close()
 
+
 if __name__ == "__main__":
-    procesar_locations()
+    main()
